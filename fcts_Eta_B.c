@@ -9,6 +9,8 @@
 #include <R_ext/Applic.h>
 #include <R_ext/Linpack.h>
 #include <R_ext/Lapack.h>
+#include <fcts_Eta_B.h>
+#include <solve.h>
 #define LOW -1.0e15
 
 #ifdef ENABLE_NLS
@@ -201,28 +203,30 @@ void subvec(double *vec1, int a, int  b, double *resvec)
  * safely writes *ptr of length n into a FILE 
  */
 
-long fsafewrite(ptr,size,n,stream)
-     double *ptr;size_t size;long n;FILE *stream;
-
-{ long i,j,k=0L;
+long fsafewrite(double *ptr, size_t size, long n, FILE *stream)
+{ 
+  long i,j,k=0L;
   for (i=0;i<(n/32000L);i++)
-  k+=fwrite(ptr+i*32000L,size,(size_t)32000L,stream);
-  j=n%32000L;
-  k+=fwrite(ptr+i*32000L,size,(size_t)j,stream);
+  {
+    k+=fwrite(ptr+i*32000L, size, (size_t)32000L, stream);
+    j=n%32000L;
+    k+=fwrite(ptr+i*32000L, size, (size_t)j, stream);
+  }
   return(k);
 }
 
 /*
  * safely reads *ptr of length n from a FILE 
  */
-long fsaferead(ptr,size,n,stream)
-     double *ptr;size_t size;long n;FILE *stream;
-
-{ long i,j=32000L,k=0L;
+long fsaferead(double *ptr, size_t size, long n, FILE *stream)
+{
+  long i,j=32000L,k=0L;
   for (i=0;i<(n/32000L);i++)
-  k+=fread(ptr+i*32000L,size,(size_t)j,stream);
-  j=n%32000L;
-  k+=fread(ptr+i*32000L,size,(size_t)j,stream);
+  {
+    k+=fread(ptr+i*32000L, size, (size_t)j, stream);
+    j=n%32000L;
+    k+=fread(ptr+i*32000L, size, (size_t)j, stream);
+  }
   return(k);
 }
 
