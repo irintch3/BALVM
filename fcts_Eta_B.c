@@ -22,7 +22,6 @@
 
 #define HIGH 1.0e15
 
-jjjj
 
 /*splines manipulating fct 
 * set sp->curs to the index of the first knot position > x.
