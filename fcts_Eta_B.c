@@ -1,24 +1,5 @@
-/*  Routines for manipulating B-splines.  These are intended for use with
- *  S or S-PLUS or R.
+/*  Routines for manipulating B-splines are by Copyright (C) 1998 Douglas M. Bates and William N. Venables.
  *
- *     Copyright (C) 1998 Douglas M. Bates and William N. Venables.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * These functions are distributed in the hope that they will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, a copy is available at
- *  http://www.r-project.org/Licenses/
- *
- * The routines are loosely based on the pseudo-code in Schumacher (Wiley,
- * 1981) and the CMLIB library DBSPLINES.
  */
 
 #include <R.h>
@@ -55,10 +36,10 @@ typedef struct {
 } splPTR;
 
 
-/* set sp->curs to the index of the first knot position > x.
-   Special handling for x == sp->knots[sp->nknots - sp-order + 1] */
+/*splines manipulating fct 
+* set sp->curs to the index of the first knot position > x.
+* Special handling for x == sp->knots[sp->nknots - sp-order + 1] */
 
-/*************************************************************************************************************************/
 static int
 set_cursor(splPTR *sp, double x)
 {
@@ -80,7 +61,11 @@ set_cursor(splPTR *sp, double x)
     return sp->curs;
 }
 
-/*************************************************************************************************************************/
+
+/*splines manipulating fct 
+* set sp->rdel and sp->ldel 
+* as fct of point x and 
+*/
 static void
 diff_table(splPTR *sp, double x, int ndiff)
 {
@@ -91,23 +76,8 @@ diff_table(splPTR *sp, double x, int ndiff)
   }
 }
 
-/******************************************************************************/
-
-
-void print_matrix( char* desc, int m, int n, double* a, int lda )
-{
-    int i, j;
-    Rprintf( " %s", desc );
-    for( i = 0; i < m; i++ ) {
-            for( j = 0; j < n; j++ ) Rprintf( " %6.9f", a[i+j*lda] );
-            Rprintf( "\n" );
-    }
-}
-
-/*************************************************************************************************************************/
-/* fast evaluation of basis functions */
-static void
-basis_funcs(splPTR *sp, double x, double *b)
+/* fast evaluation of spline basis functions */
+static void basis_funcs(splPTR *sp, double x, double *b)
 {
     int j, r;
     double saved, term;
@@ -125,7 +95,6 @@ basis_funcs(splPTR *sp, double x, double *b)
     }
 }
 
-/*************************************************************************************************************************/
 /* "slow" evaluation of (derivative of) basis functions */
 static double
 evaluate(splPTR *sp, double x, int nder)
@@ -150,12 +119,15 @@ evaluate(splPTR *sp, double x, int nder)
 }
 
 
-/*************************************************************************************************************************/
-
-void spline_basis(double *knots, int nk, int order, double *xvals, int nx, int *derivs, int nd, int *offsets, double *val)
+/* 
+ * evaluates the non-zero B-spline basis functions (and their derivatives)
+ * at xvals (of length nx) with *knots of length nk with derivs (of length nd)
+ * the result is in *val
+ */
+ 
+void spline_basis(double *knots, int nk, int order, double *xvals, int nx, int *derivs, int nd, int *offsets, 
+                  double *val)
 {
-/* evaluate the non-zero B-spline basis functions (or their derivatives)
- * at xvals.  */
     int i, j;
     splPTR *sp;
     sp = (splPTR*) calloc(1, sizeof(splPTR));
@@ -199,74 +171,92 @@ free(sp->ldel);
 free(sp->a);
 free(sp);
 }
-/*******************************************************************/
+
+/*
+* print matrix contained in *a having m columns and n rows
+* with description in desc
+*/
+void print_matrix( char* desc, int m, int n, double* a, int lda )
+{
+    int i, j;
+    Rprintf( " %s", desc );
+    for( i = 0; i < m; i++ ) {
+            for( j = 0; j < n; j++ ) Rprintf( " %6.9f", a[i+j*lda] );
+            Rprintf( "\n" );
+    }
+}
+
+/*
+* selects the subvector od *vec1 starting by position a and ending with position b
+* without checking whether the positions are smaller than length of *vec1
+* resulting vector is in *resvec
+*/
 void subvec(double *vec1, int a, int  b, double *resvec)
 {
   int i=0, length2=b-a;
   for(i = 0; i < length2; i++) resvec[i]=vec1[a+i];
 }
 
-/*******************************************************************/
+/*
+ * safely writes *ptr of length n into a FILE 
+ */
 
-void all_mu_comp(double *eta, int p, int order, int m, int nknots, double *knots, double *knotsI, double *all_beta, double *all_mu)
-{
-/* 
-m is the degree of freedom of splines and number of components in beta_{kj}
-knots and knots is for splines without intercept (but the first coordinates is the intercept function and should be excluded)
-number of knots in knotsI is knots-1
-order is the order of the spline which is the degree+1
-n is the number od observations
-*/
- 
-  int i, j,k, supi;
-  double *B, *BI, *Ball; 
-  int *offsets, *offsetsI, *derivs;
-  
-  B=(double*)calloc(order*p, sizeof(double));
-  BI=(double*)calloc(order*p, sizeof(double));
-  Ball=(double*)calloc(m*p, sizeof(double));
-  
-  derivs=(int*)calloc(p, sizeof(int));    
-  for(i = 0; i < p; i++) derivs[i] = 0; 
-  
-  offsets=(int*)calloc(p, sizeof(int));
-  offsetsI=(int*)calloc(p, sizeof(int));
-  
-  spline_basis(knotsI, (nknots-1), order, eta, p, derivs, p, offsetsI, BI);
-  /*print_matrix( "BI: ", order, 1, BI, 1 );*/
-  /*for (i=0; i<p; i++){Rprintf("  offsetsI[%d]=%d\n",i, offsetsI[i]);}*/
-  spline_basis(knots, nknots, order, eta, p, derivs, p, offsets, B);
-  /*print_matrix( "B: ", order*p, 1, B, 1 );
-  for (i=0; i<p; i++){Rprintf("  offsets[%d]=%d\n",i, offsets[i]);}*/
-  
- for (i=0; i<order; i++){
- /*Rprintf("offsetsI[0]-1+i=%d\n", offsetsI[0]-1+i); */
-    Ball[offsetsI[0]+i]=BI[i];
-  }
-  
-   for (j=1; j<p; j++){
-    if (offsets[j]!=0) {
-      for (i=0; i<order; i++){Ball[m*j+offsets[j]+i-1]=B[j*order+i];  /**/
-      /*Rprintf("m*j+offsets[j]+i=%d\n",m*j+offsets[j]+i);*/ }
-    } else {for (i=1; i<order; i++){ Ball[m*j+offsets[j]+i-1]=B[j*order+i];/**/
-        /*Rprintf("m*j+offsets[j]+i=%d\n",m*j+offsets[j]+i)*/;}}
-			}
- /*print_matrix( "Ball: ", m*p,1, Ball, m*p); */
- 
-  for (j=0;j<p; j++){
-    for (k=0; k<=j; k++){  
-      for (supi=k*m; supi<(k+1)*m; supi++) all_mu[j*(j+1)/2+k]+=Ball[supi] * all_beta[j*(j+1)*m/2+supi];
-    }
-  }
-free(B);
-free(BI);
-free(Ball);
-free(offsets);
-free(offsetsI);
-free(derivs);
+long fsafewrite(ptr,size,n,stream)
+     double *ptr;size_t size;long n;FILE *stream;
+
+{ long i,j,k=0L;
+  for (i=0;i<(n/32000L);i++)
+  k+=fwrite(ptr+i*32000L,size,(size_t)32000L,stream);
+  j=n%32000L;
+  k+=fwrite(ptr+i*32000L,size,(size_t)j,stream);
+  return(k);
 }
 
-/************************************************************************/
+/*
+ * safely reads *ptr of length n from a FILE 
+ */
+long fsaferead(ptr,size,n,stream)
+     double *ptr;size_t size;long n;FILE *stream;
+
+{ long i,j=32000L,k=0L;
+  for (i=0;i<(n/32000L);i++)
+  k+=fread(ptr+i*32000L,size,(size_t)j,stream);
+  j=n%32000L;
+  k+=fread(ptr+i*32000L,size,(size_t)j,stream);
+  return(k);
+}
+
+/*
+ * transposes *mat  
+ */
+void transpose_mat(double *mat, int ncol, int nrow, double *resmat)
+{
+ int j=0, i=0;
+       for(i = 0; i < nrow; i++)    /* column number for the element of resmat */
+         for (j = 0; j < ncol; j++)     /* line number for the element of resmat */
+           {
+              resmat[i* ncol+j]=mat[j* nrow+i];
+           }
+}
+
+/*
+ * computes the procuct of mat1 by mat2 
+ */
+void matprod(double *mat1, int ncol1, int nrow1, double *mat2, int ncol2, int nrow2, double *resmat)
+ {
+int i=0, j=0, k=0;
+double sum;
+ if (ncol1==nrow2) {
+     for (j = 0; j < ncol2; j++)     /* column number for the element of resmat */
+       for(i = 0; i < nrow1; i++)    /* line number for the element of resmat */
+          {
+             sum=0;
+             for (k = 0; k < ncol1; k++)  sum=sum+ mat1[k* nrow1+i] * mat2[j* nrow2+k];
+              resmat[j* nrow1+i]=sum;
+          }
+    }
+}
+
 /*
  *  Unequal Probability Sampling.
  *
@@ -286,7 +276,7 @@ void ProbSampleReplace(int n, double *p, int *perm, int nans, int *ans)
 
     /* record element identities */
     for (i = 0; i < n; i++)
-	perm[i] = i + 1;
+  perm[i] = i + 1;
 
     /* sort the probabilities into descending order */
     revsort(p, perm, n);
@@ -306,8 +296,7 @@ void ProbSampleReplace(int n, double *p, int *perm, int nans, int *ans)
     }
 }
 
-/************************************************************************/
-/* A  version using Walker's alias method, based on Alg 3.13B in
+/* A  version unequal probability sampling using Walker's alias method, based on Alg 3.13B in
    Ripley (1987).
  */
 #define SMALL 10000
@@ -363,14 +352,15 @@ walker_ProbSampleReplace(int n, double *p, int *a, int nans, int *ans)
     }
 }
 
-/************************************************************************/
+  /*
+  computes multivarite normal density
+  all_sigma is vector containing the diagonal elements of the covariance matrix
+  y is the point where the density is computed
+  u is the location parameter
+  */
 
 double dmvnorm(int dim, double *all_sigma, double *y, double *mu)
 {
-  /*
-  compute multivarite normal density
-  all_sigma contains the diag vector of the covariance matrix
-  */
   int i;
   double val;
   double sum_sq, lndet;
@@ -383,9 +373,71 @@ double dmvnorm(int dim, double *all_sigma, double *y, double *mu)
 }
 
 
-/******************************************************************************/
 /*
-This procedure computes and simulates the new eta and ystar
+* given eta and all_beta computes all_mu
+* m is the degree of freedom of splines and number of components in beta_{kj}
+* knots and knots is for splines without intercept (but the first coordinates is the intercept function and 
+* should be excluded)
+* number of knots in knotsI is knots-1
+* order is the order of the spline which is the degree+1
+* n is the number od observations
+* p is the number variables in initial y and defines the size of eta and all_beta
+*/
+
+void all_mu_comp(double *eta, int p, int order, int m, int nknots, double *knots, double *knotsI, 
+                double *all_beta, double *all_mu)
+{
+ 
+  int i, j,k, supi;
+  double *B, *BI, *Ball; 
+  int *offsets, *offsetsI, *derivs;
+  
+  B=(double*)calloc(order*p, sizeof(double));
+  BI=(double*)calloc(order*p, sizeof(double));
+  Ball=(double*)calloc(m*p, sizeof(double));
+  
+  derivs=(int*)calloc(p, sizeof(int));    
+  for(i = 0; i < p; i++) derivs[i] = 0; 
+  
+  offsets=(int*)calloc(p, sizeof(int));
+  offsetsI=(int*)calloc(p, sizeof(int));
+  
+  spline_basis(knotsI, (nknots-1), order, eta, p, derivs, p, offsetsI, BI);
+  /*print_matrix( "BI: ", order, 1, BI, 1 );*/
+  /*for (i=0; i<p; i++){Rprintf("  offsetsI[%d]=%d\n",i, offsetsI[i]);}*/
+  spline_basis(knots, nknots, order, eta, p, derivs, p, offsets, B);
+  /*print_matrix( "B: ", order*p, 1, B, 1 );
+  for (i=0; i<p; i++){Rprintf("  offsets[%d]=%d\n",i, offsets[i]);}*/
+  
+ for (i=0; i<order; i++){
+ /*Rprintf("offsetsI[0]-1+i=%d\n", offsetsI[0]-1+i); */
+    Ball[offsetsI[0]+i]=BI[i];
+  }
+  
+   for (j=1; j<p; j++){
+    if (offsets[j]!=0) {
+      for (i=0; i<order; i++){Ball[m*j+offsets[j]+i-1]=B[j*order+i];  /**/
+      /*Rprintf("m*j+offsets[j]+i=%d\n",m*j+offsets[j]+i);*/ }
+    } else {for (i=1; i<order; i++){ Ball[m*j+offsets[j]+i-1]=B[j*order+i];/**/
+        /*Rprintf("m*j+offsets[j]+i=%d\n",m*j+offsets[j]+i)*/;}}
+			}
+ /*print_matrix( "Ball: ", m*p,1, Ball, m*p); */
+ 
+  for (j=0;j<p; j++){
+    for (k=0; k<=j; k++){  
+      for (supi=k*m; supi<(k+1)*m; supi++) all_mu[j*(j+1)/2+k]+=Ball[supi] * all_beta[j*(j+1)*m/2+supi];
+    }
+  }
+free(B);
+free(BI);
+free(Ball);
+free(offsets);
+free(offsetsI);
+free(derivs);
+}
+
+/*
+* This procedure computes and simulates the new eta and ystar
 */
 void comp_etaY_grid (int n, int p, int S, int order, int m, int Nknots, 
 		     double *knots, double *knotsI,  double *G, double *all_beta, double *all_sigma,
@@ -515,9 +567,12 @@ double *prob_vec, prob_check;
 }
 
 
-
-/******************************************************************************/
-double ***DM3D(int n,int row,int col) {
+/*
+ * allocates memory to a three dimensional array
+ */
+ 
+double ***DM3D(int n,int row,int col) 
+{
   int i,j;
   /*int ibase=0;*/
   double ***mem;
@@ -551,9 +606,11 @@ double ***DM3D(int n,int row,int col) {
   }
   return mem;
 }
-
-/******************************************************************************/
-void Dfree3d(double ***pa) {
+/*
+ * frees memory taken by a three dimensional array 
+ */
+void Dfree3d(double ***pa) 
+{
 
 /* free the data */
 free(**pa);
@@ -562,14 +619,52 @@ free(*pa);
 /* free the 3D pointers */
 free(pa);
 }
-/******************************************************************************/
+/*
+ * allocates memory to a two dimensional array
+ */
+double **DM2D(int n,int row) 
+{
+  int i;
+  /*int ibase=0;*/
+  double **mem;
+  double *pdata;
 
+  pdata= (double *) calloc(n*row, sizeof(double));
+  if ( pdata==(double *) NULL ) {
+     fprintf(stderr, "No heap space for 2D data\n");
+     exit(1);
+  }
+
+  mem=(double **) calloc(n,sizeof(double *));
+  if ( mem==(double **) NULL ) {
+     fprintf(stderr, "No heap space for 2D data\n");
+     exit(1);
+  }
+
+  for (i=0;i<n;i++) {
+    mem[i]=pdata;
+    pdata+=row;
+  }
+  return mem;
+}
+/*
+ * frees memory taken by a two dimensional array 
+ */
+void Dfree2d(double **pa) 
+{
+
+free(*pa);
+free(pa);
+}
+
+/* 
+ * evaluates and prints the non-zero B-spline basis functions (or their derivatives)
+ * at xvals - written for checking  
+ */
 
 SEXP splb_check(SEXP Rknots, SEXP Rnknots, SEXP RknotsI, SEXP Rorder, SEXP Reta, SEXP Rm,
                 SEXP Rallbeta, SEXP Rn, SEXP Rp, SEXP RS, SEXP RG, SEXP Rall_sigma, SEXP Rdata)
 {
-/* evaluate the non-zero B-spline basis functions (or their derivatives)
- * at xvals.  */
     int nknots, order, m, n, i, p, nbeta, S/*, s,s1,j*/ ;
     double *knots, *knotsI, *eta, *all_beta;
     SEXP ans, Reta_mod, Rystar;/**/
@@ -655,8 +750,11 @@ SEXP splb_check(SEXP Rknots, SEXP Rnknots, SEXP RknotsI, SEXP Rorder, SEXP Reta,
     return(ans);
 }
 
-
-void mu_B_fct (int n, int p, int order, int m, int nknots, double *knots, double *knotsI,  double *all_beta, double *eta, double *Ball_mat, double *mu)
+/*
+ * 
+ */
+void mu_B_fct (int n, int p, int order, int m, int nknots, double *knots, double *knotsI,  
+                double *all_beta, double *eta, double *Ball_mat, double *mu)
 {
 
   int i, j,k, supi,l;
@@ -706,7 +804,9 @@ for (i=0; i<n; i++){
 
 }
 
-
+/*
+ * samples sigma_j 
+ */
 double sim_sigma_j(double *yj, double *muj, int n, double asigj, double bsigj)
 {
   double sigj, sclsigj, shpsigj;
@@ -718,6 +818,9 @@ double sim_sigma_j(double *yj, double *muj, int n, double asigj, double bsigj)
   return sigj;
 }
 
+/*
+* samples tau_kj
+*/
 double sim_taukj_naive(double ataukj, double btaukj, double *betakj, int m)
 {
   double taukj, scltaukj, shptaukj;
@@ -729,51 +832,13 @@ double sim_taukj_naive(double ataukj, double btaukj, double *betakj, int m)
   return taukj; 
 }
 
-void getXtX(double *X,int *r,int *c, double *XtX)
-/* form X'X (nearly) as efficiently as possible 
-   r is number of rows, 
-   c is number of columns */
-{ double *p0,*p1,*p2,*p3,*p4,x;
-  int i,j;
-  for (p0=X,i=0;i<*c;i++,p0 += *r) 
-  for (p1=X,j=0;j<=i;j++,p1 += *r) {
-    for (x=0.0,p2=p0,p3=p1,p4=p0 + *r;p2<p4;p2++,p3++) x += *p2 * *p3;    
-    XtX[i + j * *c] = XtX[j + i * *c] = x;
-  }
-}
 
-void transpose_mat(double *mat, int ncol, int nrow, double *resmat)
-{
- int j=0, i=0;
-       for(i = 0; i < nrow; i++)    /* column number for the element of resmat */
-         for (j = 0; j < ncol; j++)     /* line number for the element of resmat */
-           {
-              resmat[i* ncol+j]=mat[j* nrow+i];
-           }
-}
-
-void matprod(double *mat1, int ncol1, int nrow1, double *mat2, int ncol2, int nrow2, double *resmat)
- {
-int i=0, j=0, k=0;
-double sum;
- if (ncol1==nrow2) {
-     for (j = 0; j < ncol2; j++)     /* column number for the element of resmat */
-       for(i = 0; i < nrow1; i++)    /* line number for the element of resmat */
-          {
-             sum=0;
-             for (k = 0; k < ncol1; k++)  sum=sum+ mat1[k* nrow1+i] * mat2[j* nrow2+k];
-              resmat[j* nrow1+i]=sum;
-          }
-    }
-}
-
-/**************************************************************************************************************************************************************/
-
-void post_betaj_mean_cov(double *Bj_mat, double *tauj, double *yj, double sigj, int j, int m, int n, double *meanj, double *covj, double *half_covj) 
 /*
-* this function computes 
-*
-*/
+ * this function computes meanj and halfcovj necessary for update of betaj
+ */
+
+void post_betaj_mean_cov(double *Bj_mat, double *tauj, double *yj, double sigj, int j, int m, int n, 
+                         double *meanj, double *covj, double *half_covj) 
 {
   double *BtB, *Bt, *sigtauj1, *diagcovj;
   int i,k, mj1, get_inv;
@@ -787,7 +852,10 @@ void post_betaj_mean_cov(double *Bj_mat, double *tauj, double *yj, double sigj, 
   for (i=0; i<(j+1); i++) sigtauj1[i]=sigj/tauj[i];
   /*print_matrix("sigtauj1", (j+1), 1,sigtauj1, 1);*/
   
-  for (i=0; i<(j+1); i++) for (k=0; k<m;k++) BtB[mj1*m*i+mj1*k+m*i+k]=BtB[mj1*m*i+mj1*k+m*i+k]+sigtauj1[i];
+  for (i=0; i<(j+1); i++) 
+  {
+    for (k=0; k<m;k++) BtB[mj1*m*i+mj1*k+m*i+k]=BtB[mj1*m*i+mj1*k+m*i+k]+sigtauj1[i];
+  }
   
   get_inv=1;
   /*Rprintf("j+1=%d", j+1);
@@ -807,15 +875,18 @@ void post_betaj_mean_cov(double *Bj_mat, double *tauj, double *yj, double sigj, 
   free(BtB); /*don't need BtB anymore*/
   free(Bt);
   
-  mroot(half_covj,&mj1,&mj1);/*now half_covj contains (covj)^0.5 but stored by rows*/
+  mroot(half_covj,&mj1,&mj1);
+  /*now half_covj contains (covj)^0.5 but stored by rows*/
   BtB=(double *) calloc(mj1*mj1, sizeof(double));
   transpose_mat(half_covj, mj1, mj1, BtB);
-  for (i=0; i<mj1*mj1; i++) half_covj[i]=BtB[i];/**/
+  for (i=0; i<mj1*mj1; i++) half_covj[i]=BtB[i];
   free(BtB);
 }
 
-/****************************************************************************************************************************************************/
 
+/*
+* sample betaj
+*/
 void sim_betaj(int j, int m, double *meanj, double *half_covj, double *betaj)
 {
   int k, mj1;
@@ -828,12 +899,12 @@ void sim_betaj(int j, int m, double *meanj, double *half_covj, double *betaj)
   free(hlp);
 }
 
-/****************************************************************************************************************************************************/
+/* this function checks whether we compute correctly parameters for betaj posterior distribution*/
 
 SEXP betaj_post_check(SEXP Rknots, SEXP Rnknots, SEXP RknotsI, SEXP Rorder, SEXP Reta, SEXP Rm,
                 SEXP Rallbeta, SEXP Rn, SEXP Rp, SEXP RS, SEXP RG, SEXP Rall_sigma, SEXP Rdata, SEXP Rtau)
 {
-/* this function checks whether we compute correctly parameters for betaj posterior distribution*/
+
     int nknots, order, m, n, i, j, p, nbeta, S, mj1/*, s,s1,j*/ ;
     double *knots, *knotsI, *eta, *all_beta;
     SEXP ans, Rcov, Rhalfcov, Rmean;/**/
@@ -1028,9 +1099,11 @@ for (t=0; t<tot_draws; t++)
     free(mu_betaj); /**/
   }  /* end j loop */
 
- comp_etaY_grid (n, p, grid_length, order, m, Nknots, knots, knotsI, grid, all_beta, sigma_vec, data, eta, ystar, Pijs);/**/
+ comp_etaY_grid (n, p, grid_length, order, m, Nknots, knots, knotsI, 
+                grid, all_beta, sigma_vec, data, eta, ystar, Pijs);
 
-} /* end draws*/
+} 
+/* end draws*/
 
 
 PutRNGstate(); 
@@ -1051,14 +1124,16 @@ PutRNGstate();
 
 /******************************************************************************************************/
 
+/* evaluate the non-zero B-spline basis functions (or their derivatives)
+ * at xvals.  */
+ 
 SEXP B_mu_check(SEXP Rknots, SEXP Rnknots, SEXP RknotsI, SEXP Rorder, SEXP Reta, SEXP Rm,
                 SEXP Rallbeta, SEXP Rn, SEXP Rp, SEXP RS, SEXP RG, SEXP Rall_sigma, SEXP Rdata)
 {
-/* evaluate the non-zero B-spline basis functions (or their derivatives)
- * at xvals.  */
+
     int nknots, order, m, n, i, p, nbeta, S/*, s,s1,j*/ ;
     double *knots, *knotsI, *eta, *all_beta;
-    SEXP ans, RBall_mat, Rmu;/**/
+    SEXP ans, RBall_mat, Rmu;
     double *all_sigma, *data, *Ball_mat, *mu;
 
 

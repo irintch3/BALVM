@@ -7,8 +7,6 @@
 #include <R_ext/Lapack.h>
 #define LOW -1.0e15
 
-
-void mgcv_qr(double *x, int *r, int *c,int *pivot,double *tau)
 /* call LA_PACK to get pivoted QR decomposition of x
    tau is an array of length min(r,c)
    pivot is array of length c, zeroed on entry, pivoting order on return.
@@ -23,6 +21,9 @@ void mgcv_qr(double *x, int *r, int *c,int *pivot,double *tau)
    um<-.C("mgcv_qr",as.double(X),as.integer(r),as.integer(c),as.integer(pivot),as.double(tau))
    qr.R(qr(X));matrix(um[[1]],r,c)[1:c,1:c]
 */
+
+void mgcv_qr(double *x, int *r, int *c,int *pivot,double *tau)
+
 { int info,lwork=-1,*ip;
   double work1,*work;
   /* workspace query */
@@ -38,8 +39,6 @@ void mgcv_qr(double *x, int *r, int *c,int *pivot,double *tau)
 
 }
 
-
-void mgcv_qrqy(double *b,double *a,double *tau,int *r,int *c,int *k,int *left,int *tp)
 /* applies k reflectors of Q of a QR decomposition to r by c matrix b.
    Apply Q from left if left!=0, right otherwise.
    Transpose Q only if tp!=0.
@@ -57,6 +56,7 @@ void mgcv_qrqy(double *b,double *a,double *tau,int *r,int *c,int *k,int *left,in
    er[[1]];qr.qy(qrx,y)
 
 */
+void mgcv_qrqy(double *b,double *a,double *tau,int *r,int *c,int *k,int *left,int *tp)
 
 { char side='L',trans='N';
   int lda,lwork=-1,info;
@@ -74,12 +74,13 @@ void mgcv_qrqy(double *b,double *a,double *tau,int *r,int *c,int *k,int *left,in
 
 }
 
-void mgcv_backsolve(double *R,int *r,int *c,double *B,double *C, int *bc)
 /* Finds C = R^{-1} B where R is the c by c matrix stored in the upper triangle
    of r by c argument R. B is c by bc. (Possibility of non square argument
    R facilitates use with output from mgcv_qr). This is just a standard back
    substitution loop.
 */
+void mgcv_backsolve(double *R,int *r,int *c,double *B,double *C, int *bc)
+
 { int i,j,k;
   double x,*pR,*pC;
   for (j=0;j<*bc;j++) { /* work across columns of B & C */
@@ -93,13 +94,13 @@ void mgcv_backsolve(double *R,int *r,int *c,double *B,double *C, int *bc)
   }
 }
 
-
-void qr_ldet_inv(double *X,int *r,double *Xi,int *get_inv, double *diagR)
 /* Obtains the log|X| and the inverse of X (r by r), by pivoted QR decomposition.
    The inverse is returned (unpivoted) in Xi.
    The function returns log|X| as its value.
    X is overwirtten in the process
 */
+void qr_ldet_inv(double *X,int *r,double *Xi,int *get_inv, double *diagR)
+
 { double *tau,*p,*Qt;
   int *pivot,i,TRUE=1,j;
   /* Allocated working storage ...*/
@@ -137,12 +138,11 @@ void qr_ldet_inv(double *X,int *r,double *Xi,int *get_inv, double *diagR)
 }
 
 
-
-void getXtMX(double *XtMX,double *X,double *M,int *r,int *c,double *work)
 /* forms X'MX as efficiently as possible, where M is a symmetric matrix
    and X is an r by c matrix. X and M are stored column wise.
    work should be an r-vector (longer is no problem).
 */
+void getXtMX(double *XtMX,double *X,double *M,int *r,int *c,double *work)
 
 { int i,j;
   double *p,*p1,*p2,*pX0,*pX1,xx,*pM;
@@ -164,10 +164,6 @@ void getXtMX(double *XtMX,double *X,double *M,int *r,int *c,double *work)
 
 
 
-
-/* added March, 23, 2012*/
-
-void mgcv_chol(double *a,int *pivot,int *n,int *rank)
 /* a stored in column order, this routine finds the pivoted choleski decomposition of matrix a 
    library(mgcv)
    X<-matrix(rnorm(16),4,4);D<-X%*%t(X)
@@ -181,6 +177,8 @@ void mgcv_chol(double *a,int *pivot,int *n,int *rank)
    L<-mroot(D)
    D;t(rD)%*%rD;L%*%t(L)
 */
+void mgcv_chol(double *a,int *pivot,int *n,int *rank)
+
 { double *work,*p1,*p2,*p;
   int piv=1;
   work=(double *)calloc((size_t) *n,sizeof(double));
@@ -190,7 +188,6 @@ void mgcv_chol(double *a,int *pivot,int *n,int *rank)
   free(work);
 }
 
-void mroot(double *A,int *rank,int *n)
 /* finds the minimum rank or supplied rank square root of n by n matrix  A by pivoted choleski 
    decomposition returned in A is B such that B'B = A (this is different from R routine mroot)
 
@@ -203,6 +200,8 @@ void mroot(double *A,int *rank,int *n)
    D;t(rD)%*%rD
    
 */
+void mroot(double *A,int *rank,int *n)
+
 { int *pivot,erank,i,j;
   double *pi,*pj,*p0,*p1,*B;
   pivot=(int *)calloc((size_t)*n,sizeof(int));
@@ -222,3 +221,16 @@ void mroot(double *A,int *rank,int *n)
   free(pivot);free(B);
 }
 
+/* form X'X (nearly) as efficiently as possible 
+   r is number of rows, 
+   c is number of columns */
+
+void getXtX(double *X,int *r,int *c, double *XtX)
+{ double *p0,*p1,*p2,*p3,*p4,x;
+  int i,j;
+  for (p0=X,i=0;i<*c;i++,p0 += *r) 
+  for (p1=X,j=0;j<=i;j++,p1 += *r) {
+    for (x=0.0,p2=p0,p3=p1,p4=p0 + *r;p2<p4;p2++,p3++) x += *p2 * *p3;    
+    XtX[i + j * *c] = XtX[j + i * *c] = x;
+  }
+}

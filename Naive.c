@@ -35,177 +35,11 @@ typedef struct {
 /* set sp->curs to the index of the first knot position > x.
    Special handling for x == sp->knots[sp->nknots - sp-order + 1] */
 
-/*************************************************************************************************************************/
-static int
-set_cursor(splPTR *sp, double x)
-{
-    int i;
-    /* don't assume x's are sorted */
-
-    sp->curs = -1; /* Wall */
-    sp->boundary = 0;
-    for (i = 0; i < sp->nknots; i++) {
-	if (sp->knots[i] >= x) sp->curs = i;
-	if (sp->knots[i] > x) break;
-    }
-    if (sp->curs > sp->nknots - sp->order) {
-	int lastLegit = sp->nknots - sp->order;
-	if (x == sp->knots[lastLegit]) {
-	    sp->boundary = 1; sp->curs = lastLegit;
-	}
-    }
-    return sp->curs;
-}
-
-/*************************************************************************************************************************/
-static void
-diff_table(splPTR *sp, double x, int ndiff)
-{
-  int i;
-  for (i = 0; i < ndiff; i++) {
-      sp->rdel[i] = sp->knots[sp->curs + i] - x;
-      sp->ldel[i] = x - sp->knots[sp->curs - (i + 1)];
-  }
-}
-
-/******************************************************************************/
-
-
-void print_matrix( char* desc, int m, int n, double* a, int lda )
-{
-    int i, j;
-    Rprintf( " %s\n", desc );
-    for( i = 0; i < m; i++ ) {
-            for( j = 0; j < n; j++ ) Rprintf( " %6.9f", a[i+j*lda] );
-            Rprintf( "\n" );
-    }
-}
-
-/*************************************************************************************************************************/
-/* fast evaluation of basis functions */
-static void
-basis_funcs(splPTR *sp, double x, double *b)
-{
-    int j, r;
-    double saved, term;
-
-    diff_table(sp, x, sp->ordm1);
-    b[0] = 1.;
-    for (j = 1; j <= sp->ordm1; j++) {
-	saved = 0.;
-	for (r = 0; r < j; r++) {
-	    term = b[r]/(sp->rdel[r] + sp->ldel[j - 1 - r]);
-	    b[r] = saved + sp->rdel[r] * term;
-	    saved = sp->ldel[j - 1 - r] * term;
-	}
-	b[j] = saved;
-    }
-}
-
-/*************************************************************************************************************************/
-/* "slow" evaluation of (derivative of) basis functions */
-static double
-evaluate(splPTR *sp, double x, int nder)
-{
-    register double *lpt, *rpt, *apt, *ti = sp->knots + sp->curs;
-    int inner, outer = sp->ordm1;
-
-    if (sp->boundary && nder == sp->ordm1) { /* value is arbitrary */
-	return 0.0;
-    }
-    while(nder--) {
-	for(inner = outer, apt = sp->a, lpt = ti - outer; inner--; apt++, lpt++)
-	    *apt = outer * (*(apt + 1) - *apt)/(*(lpt + outer) - *lpt);
-	outer--;
-    }
-    diff_table(sp, x, outer);
-    while(outer--)
-	for(apt = sp->a, lpt = sp->ldel + outer, rpt = sp->rdel, inner = outer + 1;
-	    inner--; lpt--, rpt++, apt++)
-	    *apt = (*(apt + 1) * *lpt + *apt * *rpt)/(*rpt + *lpt);
-    return sp->a[0];
-}
-
-
-/*************************************************************************************************************************/
-
-void spline_basis(double *knots, int nk, int order, double *xvals, int nx, int *derivs, int nd, int *offsets, double *val)
-{
-/* evaluate the non-zero B-spline basis functions (or their derivatives)
- * at xvals.  */
-    int i, j;
-    splPTR *sp;
-    sp = (splPTR*) calloc(1, sizeof(splPTR));
-
-    /*kk = REAL(knots);*/
-    /*xx = REAL(xvals);*/
-    /*ders = INTEGER(derivs);*/
-
-    /* fill sp : */
-    sp->order = order;
-    sp->ordm1 = sp->order - 1;
-    sp->rdel = (double *) calloc(sp->ordm1, sizeof(double));
-    sp->ldel = (double *) calloc(sp->ordm1, sizeof(double));
-    sp->knots = knots; sp->nknots = nk;
-    sp->a = (double *) calloc(sp->order, sizeof(double));
-    
-
-    for(i = 0; i < nx; i++) {
-	set_cursor(sp, xvals[i]);
-	offsets[i] = j = sp->curs - sp->order;
-	if (j < 0 || j > nk) {
-	    for (j = 0; j < sp->order; j++) {
-		val[i * sp->order + j] = HIGH;
-	    }
-	} else {
-	    if (derivs[i % nd] > 0) { /* slow method for derivatives */
-		int ii;
-		for(ii = 0; ii < sp->order; ii++) {
-		    for(j = 0; j < sp->order; j++) sp->a[j] = 0;
-		    sp->a[ii] = 1;
-		    val[i * sp->order + ii] =
-			evaluate(sp, xvals[i], derivs[i % nd]);
-		}
-	    } else {		/* fast method for value */
-		basis_funcs(sp, xvals[i], val + i * sp->order);
-	    }
-	}
-    }
-free(sp->rdel);
-free(sp->ldel);
-free(sp->a);
-free(sp);
-}
-/*******************************************************************/
-/********************************/
-
-long fsafewrite(ptr,size,n,stream)
-     double *ptr;size_t size;long n;FILE *stream;
-
-{ long i,j,k=0L;
-  for (i=0;i<(n/32000L);i++)
-  k+=fwrite(ptr+i*32000L,size,(size_t)32000L,stream);
-  j=n%32000L;
-  k+=fwrite(ptr+i*32000L,size,(size_t)j,stream);
-  return(k);
-}
-
-long fsaferead(ptr,size,n,stream)
-     double *ptr;size_t size;long n;FILE *stream;
-
-{ long i,j=32000L,k=0L;
-  for (i=0;i<(n/32000L);i++)
-  k+=fread(ptr+i*32000L,size,(size_t)j,stream);
-  j=n%32000L;
-  k+=fread(ptr+i*32000L,size,(size_t)j,stream);
-  return(k);
-}
-/******************************************************************************/
-
 
 /*******************************************************************/
 
-void all_mu_comp(double *eta, int p, int order, int m, int nknots, double *knots, double *knotsI, double *all_beta, double *all_mu) 
+void all_mu_comp(double *eta, int p, int order, int m, int nknots, double *knots, double *knotsI, 
+                  double *all_beta, double *all_mu) 
 /*all_mu should be an array of zeros*/
 {
 /* 
@@ -274,147 +108,8 @@ free(derivs);
 
 /* Unequal probability sampling; with-replacement case */
 
-void ProbSampleReplace(int n, double *p, int *perm, int nans, int *ans)
-{
-    double rU;
-    int i, j;
-    int nm1 = n - 1;
-
-    /* record element identities */
-    for (i = 0; i < n; i++)
-  	perm[i] = i + 1;
-
-    /* sort the probabilities into descending order */
-    revsort(p, perm, n);
-
-    /* compute cumulative probabilities */
-    for (i = 1 ; i < n; i++)
-  	p[i] += p[i - 1];
-
-    /* compute the sample */
-    for (i = 0; i < nans; i++) {
-  	rU = unif_rand();
-	   for (j = 0; j < nm1; j++) {
-  	    if (rU <= p[j])
- 		break;
-	}
-	ans[i] = perm[j];
-    }
-}
-
-
-/***********************************************************************
-dyn.load("fcts_Eta_B_win.so")
-Rtot_draws <- as.integer(18)#0000
-Rdens=0
-Rdrws.step <- 1
-
-mu.all.my <- .Call("gibbs_BALVM_naive", Rtot_draws, Aknots, as.integer(nknots), AknotsI, as.integer(ord),
-                   as.integer(n), as.integer(m), as.integer(p), as.integer(S), grid.eta, data, c(1,0.05),
-                   c(1,0.05), eta, Rallbeta, as.integer(Rdens),as.integer(Rdrws.step) )
-
-dyn.unload("fcts_Eta_B_win.so")*/
-
-double dmvnorm(int dim, double *all_sigma, double *y, double *mu)
-{
-  /*
-  compute multivarite normal density
-  all_sigma contains the diag vector of the covariance matrix
-  */
-  int i;
-  double val;
-  double sum_sq, lndet;
-  sum_sq=0;
-  lndet=0;
-  
-  for (i=0; i<dim; i++){sum_sq=sum_sq+pow(y[i]-mu[i], 2.0)/(2*all_sigma[i]); lndet=lndet+0.5*log(all_sigma[i]*2*PI);}
-  val=exp(-sum_sq-lndet);
-  return val;
-}
-
-
 
 /******************************************************************************/
-double ***DM3D(int n,int row,int col) {
-  int i,j;
-  /*int ibase=0;*/
-  double ***mem;
-  double **prow;
-  double *pdata;
-
-  pdata= (double *) calloc(n*row*col, sizeof(double));
-  if ( pdata==(double *) NULL ) {
-     fprintf(stderr, "No heap space for 3D data\n");
-     exit(1);
-  }
-
-  prow=(double **) calloc(n*row, sizeof(double *));
-  if ( prow==(double **) NULL ) {
-     fprintf(stderr, "No heap space for 3D data\n");
-     exit(1);
-  }
-  mem=(double ***) calloc(n,sizeof(double **));
-  if ( mem==(double ***) NULL ) {
-     fprintf(stderr, "No heap space for 3D data\n");
-     exit(1);
-  }
-
-  for (i=0;i<n;i++) {
-    for ( j=0;j<row; j++) {
-      prow[j]=pdata;
-      pdata+=col;
-    }
-    mem[i]=prow;
-    prow+=row;
-  }
-  return mem;
-}
-/******************************************************************************/
-void Dfree3d(double ***pa) {
-
-/* free the data */
-free(**pa);
-/* free the row pointers */
-free(*pa);
-/* free the 3D pointers */
-free(pa);
-}
-/******************************************************************************/
-double **DM2D(int n,int row) {
-  int i;
-  /*int ibase=0;*/
-  double **mem;
-  double *pdata;
-
-  pdata= (double *) calloc(n*row, sizeof(double));
-  if ( pdata==(double *) NULL ) {
-     fprintf(stderr, "No heap space for 2D data\n");
-     exit(1);
-  }
-
-  mem=(double **) calloc(n,sizeof(double *));
-  if ( mem==(double **) NULL ) {
-     fprintf(stderr, "No heap space for 2D data\n");
-     exit(1);
-  }
-
-  for (i=0;i<n;i++) {
-    mem[i]=pdata;
-    pdata+=row;
-  }
-  return mem;
-}
-/******************************************************************************/
-void Dfree2d(double **pa) {
-
-free(*pa);
-free(pa);
-}
-
-/********************************/
-
-/******************************************************************************/
-
 
 /*
 This procedure computes and simulates the new eta and ystar
@@ -540,51 +235,6 @@ if (dens_comp==1)
 
  /******************************************************************************/
 
-void getXtX(double *X,int *r,int *c, double *XtX)
-/* form X'X (nearly) as efficiently as possible 
-   r is number of rows, 
-   c is number of columns */
-{ double *p0,*p1,*p2,*p3,*p4,x;
-  int i,j;
-  for (p0=X,i=0;i<*c;i++,p0 += *r) 
-  for (p1=X,j=0;j<=i;j++,p1 += *r) {
-    for (x=0.0,p2=p0,p3=p1,p4=p0 + *r;p2<p4;p2++,p3++) x += *p2 * *p3;    
-    XtX[i + j * *c] = XtX[j + i * *c] = x;
-  }
-}
-
-void transpose_mat(double *mat, int ncol, int nrow, double *resmat)
-{
- int j=0, i=0;
-       for(i = 0; i < nrow; i++)    /* column number for the element of resmat */
-         for (j = 0; j < ncol; j++)     /* line number for the element of resmat */
-           {
-              resmat[i* ncol+j]=mat[j* nrow+i];
-           }
-}
-
-void matprod(double *mat1, int ncol1, int nrow1, double *mat2, int ncol2, int nrow2, double *resmat)
-/*
-computes product of two matrices ncol1 should be equal nrow2
-otherwise nothing happens
-*/
- {
-int i=0, j=0, k=0;
-double sum;
- if (ncol1==nrow2) {
-     for (j = 0; j < ncol2; j++)     /* column number for the element of resmat */
-       for(i = 0; i < nrow1; i++)    /* line number for the element of resmat */
-          {
-             sum=0;
-             for (k = 0; k < ncol1; k++)  sum=sum+ mat1[k* nrow1+i] * mat2[j* nrow2+k];
-              resmat[j* nrow1+i]=sum;
-          }
-    }
-}
-
-/**************************************************************************************************************************************************************/
-
-/*********************************************************************************/
 /*
 this procedure computes the overall matrix B (Ball_mat) and the total values of mu_1, ..., mu_p (mu)
 */
@@ -641,11 +291,17 @@ void mu_B_fct (int n, int p, int order, int m, int nknots, double *knots,
       }
     }
     
-    for (j=0; j<p; j++){for (k=0;k<j+1; k++){ mu_p[j]=mu_p[j]+all_mu[j*(j+1)/2+k]; }}
+    for (j=0; j<p; j++)
+    {for (k=0;k<j+1; k++)
+    { 
+      mu_p[j]=mu_p[j]+all_mu[j*(j+1)/2+k];   
+    }
+    }
     for (k=0; k<p; k++) mu[k*n+i]=mu_p[k];
     for (k=0; k<m*p; k++) Ball_mat[k*n+i]=Ball[k];
-    if (save==1) fsafewrite(all_mu,sizeof(double),(p+1)*p/2,  out_allmu); /**/
-}
+    if (save==1) fsafewrite(all_mu,sizeof(double),(p+1)*p/2,  out_allmu); 
+  }
+  
   free(Ball);
   free(all_mu);
   free(mu_p);
@@ -658,10 +314,8 @@ void mu_B_fct (int n, int p, int order, int m, int nknots, double *knots,
 }
 
 
-/*********************************************************************************/
-
 /*******************************************************************************************************/
-/* Gibbs sampler for BALVM with naive prior */
+/* one step of Gibbs sampler for BALVM with naive prior */
 
 void one_step_gibbs_naive(int m, int n, int p, double *Ball_mat, double *data, double *mu, double a_sigma, 
 			  double b_sigma, double a_tau, double b_tau,double *all_beta, double *sigma_vec )
@@ -759,9 +413,9 @@ void one_step_gibbs_naive(int m, int n, int p, double *Ball_mat, double *data, d
  free(yj);
  free(muj);
 }
-
+  
 /*******************************************************************************************************/
-/* Gibbs sampler for BALVM with naive prior */
+/* full Gibbs sampler for BALVM with naive prior */
 
 SEXP gibbs_BALVM_naive(SEXP Rtot_draws, SEXP Rknots, SEXP RNknots, SEXP RknotsI, SEXP Rorder,
 			SEXP Rn, SEXP Rm, SEXP Rp, SEXP RGrid_length, SEXP Rgrid, SEXP Rdata, SEXP Rab_sigma, 
