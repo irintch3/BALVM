@@ -9,8 +9,8 @@
 #include <R_ext/Applic.h>
 #include <R_ext/Linpack.h>
 #include <R_ext/Lapack.h>
-#include <fcts_Eta_B.h>
-#include <solve.h>
+#include "fcts_Eta_B.h"
+#include "solve.h"
 #define LOW -1.0e15
 
 #ifdef ENABLE_NLS
@@ -22,21 +22,7 @@
 
 #define HIGH 1.0e15
 
-typedef struct {
-    int order,			/* order of the spline */
-	ordm1,			/* order - 1 (3 for cubic splines) */
-	nknots,			/* number of knots */
-	curs,			/* current position in knots vector */
-	boundary;		/* must have knots[curs] <= x < knots[curs+1] */
-				/* except for the boundary case */
-
-    double *ldel,		/* differences from knots on the left */
-	*rdel,			/* differences from knots on the right */
-	*knots,			/* knot vector */
-	*coeff,			/* coefficients */
-	*a;			/* scratch array */
-} splPTR;
-
+jjjj
 
 /*splines manipulating fct 
 * set sp->curs to the index of the first knot position > x.

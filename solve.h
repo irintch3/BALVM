@@ -22,7 +22,7 @@
    qr.R(qr(X));matrix(um[[1]],r,c)[1:c,1:c]
 */
 
-void mgcv_qr(double *x, int *r, int *c,int *pivot,double *tau)
+void mgcv_qr(double *x, int *r, int *c,int *pivot,double *tau);
 
 
 /* applies k reflectors of Q of a QR decomposition to r by c matrix b.
@@ -42,7 +42,7 @@ void mgcv_qr(double *x, int *r, int *c,int *pivot,double *tau)
    er[[1]];qr.qy(qrx,y)
 
 */
-void mgcv_qrqy(double *b,double *a,double *tau,int *r,int *c,int *k,int *left,int *tp)
+void mgcv_qrqy(double *b,double *a,double *tau,int *r,int *c,int *k,int *left,int *tp);
 
 
 /* Finds C = R^{-1} B where R is the c by c matrix stored in the upper triangle
@@ -50,7 +50,7 @@ void mgcv_qrqy(double *b,double *a,double *tau,int *r,int *c,int *k,int *left,in
    R facilitates use with output from mgcv_qr). This is just a standard back
    substitution loop.
 */
-void mgcv_backsolve(double *R,int *r,int *c,double *B,double *C, int *bc)
+void mgcv_backsolve(double *R,int *r,int *c,double *B,double *C, int *bc);
 
 
 /* Obtains the log|X| and the inverse of X (r by r), by pivoted QR decomposition.
@@ -58,7 +58,7 @@ void mgcv_backsolve(double *R,int *r,int *c,double *B,double *C, int *bc)
    The function returns log|X| as its value.
    X is overwirtten in the process
 */
-void qr_ldet_inv(double *X,int *r,double *Xi,int *get_inv, double *diagR)
+void qr_ldet_inv(double *X,int *r,double *Xi,int *get_inv, double *diagR);
 
 
 
@@ -66,7 +66,7 @@ void qr_ldet_inv(double *X,int *r,double *Xi,int *get_inv, double *diagR)
    and X is an r by c matrix. X and M are stored column wise.
    work should be an r-vector (longer is no problem).
 */
-void getXtMX(double *XtMX,double *X,double *M,int *r,int *c,double *work)
+void getXtMX(double *XtMX,double *X,double *M,int *r,int *c,double *work);
 
 
 
@@ -85,7 +85,7 @@ void getXtMX(double *XtMX,double *X,double *M,int *r,int *c,double *work)
    L<-mroot(D)
    D;t(rD)%*%rD;L%*%t(L)
 */
-void mgcv_chol(double *a,int *pivot,int *n,int *rank)
+void mgcv_chol(double *a,int *pivot,int *n,int *rank);
 
 
 /* finds the minimum rank or supplied rank square root of n by n matrix  A by pivoted choleski 
@@ -100,12 +100,12 @@ void mgcv_chol(double *a,int *pivot,int *n,int *rank)
    D;t(rD)%*%rD
    
 */
-void mroot(double *A,int *rank,int *n)
+void mroot(double *A,int *rank,int *n);
 
 
 /* form X'X (nearly) as efficiently as possible 
    r is number of rows, 
    c is number of columns */
 
-void getXtX(double *X,int *r,int *c, double *XtX)
+void getXtX(double *X,int *r,int *c, double *XtX);
 
