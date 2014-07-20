@@ -112,7 +112,7 @@ free(derivs);
 /******************************************************************************/
 
 /*
-This procedure computes and simulates the new eta and ystar
+This procedure computes and simulates the new eta and/or ystar
 */
 void comp_etaY_grid (int n, int p, int S, int order, int m, int Nknots,
 		     double *knots, double *knotsI,  double *G, double *all_beta, double *all_sigma,
@@ -136,24 +136,50 @@ void comp_etaY_grid (int n, int p, int S, int order, int m, int Nknots,
   mu_p=(double *) calloc(p, sizeof(double));
 
 
-for (i=0; i<n; i++){
-  for (j=0; j<p; j++){
-    for (s=0; s<S; s++){
+for (i=0; i<n; i++)
+{
+  for (j=0; j<p; j++)
+  {
+    for (s=0; s<S; s++)
+    {
   	  for (k=0; k<p; k++) eta_i[k]=eta[k*n+i];
-  	  eta_i[j]=G[s];
-  	  all_mu_comp(eta_i, p, order, m, Nknots, knots, knotsI, all_beta, all_mu);
-  	  for (j1=0; j1<p; j1++){for (k=0;k<j1+1; k++){ mu_p[j1]=mu_p[j1]+all_mu[j1*(j1+1)/2+k]; all_mu[j1*(j1+1)/2+k]=0;}}
-  	  sigma_jp=(double *) calloc((p-j),sizeof(double));
-  	  yi_jp=(double *) calloc((p-j),sizeof(double));
-  	  mu_jp=(double *) calloc((p-j),sizeof(double));
-  	  for (k=0; k<p-j; k++) { yi_jp[k]=data[(j+k)*n+i]; sigma_jp[k]=all_sigma[j+k]; mu_jp[k]=mu_p[j+k];}
-  	  Pijs[i][j][s]=dmvnorm(p-j, sigma_jp, yi_jp, mu_jp);
-      memset(mu_p, 0, p*sizeof(double));
-  	  Pij[i][j]+=Pijs[i][j][s];
-  	  if (dens_comp==1) Pjs[j][s]+=Pijs[i][j][s];
-  	  free(sigma_jp);
-  	  free(yi_jp);
-  	  free(mu_jp);
+  	    eta_i[j]=G[s];
+  	    all_mu_comp(eta_i, p, order, m, Nknots, knots, knotsI, all_beta, all_mu);
+  	    for (j1=0; j1<p; j1++)
+        {
+          for (k=0;k<j1+1; k++)
+          { 
+            mu_p[j1]=mu_p[j1]+all_mu[j1*(j1+1)/2+k]; 
+            all_mu[j1*(j1+1)/2+k]=0;
+          }
+        }
+  	    sigma_jp=(double *) calloc((p-j),sizeof(double));
+  	    yi_jp=(double *) calloc((p-j),sizeof(double));
+  	    mu_jp=(double *) calloc((p-j),sizeof(double));
+  	    for (k=0; k<p-j; k++) 
+        { 
+          yi_jp[k]=data[(j+k)*n+i]; 
+          sigma_jp[k]=all_sigma[j+k]; 
+          mu_jp[k]=mu_p[j+k];
+        }
+  	    Pijs[i][j][s]=dmvnorm(p-j, sigma_jp, yi_jp, mu_jp); 
+        /* 
+        * this is the unnormalized probability u_ij=gamma_s and 
+        * y*_sj=y_ij
+        */
+        memset(mu_p, 0, p*sizeof(double));
+  	    Pij[i][j]+=Pijs[i][j][s]; 
+        /* 
+        * Pij[i][j] is to normalize probability u_ij=gamma_s
+        */
+  	    if (dens_comp==1) Pjs[j][s]+=Pijs[i][j][s];
+        /* 
+        * Pjs[j][s] is to normalize probability y*_sj=y_ij
+        */
+
+  	    free(sigma_jp);
+  	    free(yi_jp);
+  	    free(mu_jp);
 	   }
     }
   }
@@ -186,8 +212,10 @@ Rprintf("Pjs=:");
   num_grid=(int*) calloc(1, sizeof(int));
   prob_vec=(double *) malloc(S*sizeof(double));
   
-     for (i=0; i<n; i++){
-       for (j=0; j<p; j++){
+     for (i=0; i<n; i++)
+     {
+       for (j=0; j<p; j++)
+       {
            prob_check=0;
            if (Pij[i][j]!=0)
            {
@@ -197,13 +225,16 @@ Rprintf("Pjs=:");
                 /*Rprintf("Pijs[%d][%d][%d]=%f, Pij[%d][%d]=%f, Pijs[%d][%d][%d]/Pij[%d][%d]=%f,  prob_vec[%d]=%f\n",i,j,s,Pijs[i][j][s], i,j, Pij[i][j],  i,j,s,i,j,Pijs[i][j][s]/Pij[i][j], s, prob_vec[s]);*/
                 prob_check=prob_check+prob_vec[s];
               }
-           } else {for (s=0; s<S; s++) prob_vec[s]=1.0/S;}
+           } else 
+           {
+             for (s=0; s<S; s++) prob_vec[s]=1.0/S;
+            }
           /*print_matrix(" comp_etaY_grid prob_vec=", S,1,prob_vec,S );*/
-	  ProbSampleReplace(S, prob_vec, perm, 1, num_grid);
-	  /*Rprintf("num_grid[0]-1=%d\n", num_grid[0]-1);*/
-          eta[i+j*n]=G[num_grid[0]-1];
-          }
-   }
+	    ProbSampleReplace(S, prob_vec, perm, 1, num_grid);
+	    /*Rprintf("num_grid[0]-1=%d\n", num_grid[0]-1);*/
+      eta[i+j*n]=G[num_grid[0]-1];
+        }
+      }
   free(prob_vec);
   free(perm);
 
@@ -212,12 +243,17 @@ if (dens_comp==1)
   prob_vec=(double *) malloc(n*sizeof(double));
   perm=(int*) calloc(n, sizeof(int));
 
-  for (s=0; s<S; s++){
-   for (j=0; j<p; j++){
-    if (Pjs[j][s]!=0) { for (i=0; i<n; i++) prob_vec[i]=Pijs[i][j][s]/Pjs[j][s];} else prob_vec[i]=1.0/n;
-    /*Rprintf("num_grid[0]-1=%d\n", num_grid[0]-1);*/
-    ProbSampleReplace(n, prob_vec, perm, 1, num_grid);
-    ystar[S*j+s]=data[num_grid[0]-1+j*n];
+  for (s=0; s<S; s++)
+  {
+   for (j=0; j<p; j++)
+   {
+    if (Pjs[j][s]!=0) 
+    { 
+      for (i=0; i<n; i++) prob_vec[i]=Pijs[i][j][s]/Pjs[j][s];
+      } else prob_vec[i]=1.0/n;
+      /*Rprintf("num_grid[0]-1=%d\n", num_grid[0]-1);*/
+      ProbSampleReplace(n, prob_vec, perm, 1, num_grid);
+      ystar[S*j+s]=data[num_grid[0]-1+j*n];
   }
  }
   free(prob_vec);
