@@ -5,6 +5,8 @@
 #include <R_ext/Applic.h>
 #include <R_ext/Linpack.h>
 #include <R_ext/Lapack.h>
+#include "fcts_Eta_B.h"
+#include "solve.h"
 #define LOW -1.0e15
 
 #ifdef ENABLE_NLS
@@ -126,6 +128,7 @@ void comp_etaY_grid (int n, int p, int S, int order, int m, int Nknots,
 
   Pij=DM2D(n,p);
   Pjs=DM2D(p,S);  
+  
   for (j=0; j<p;j++){
     for (s=0; s<S; s++) Pjs[j][s]=0;
     for (i=0; i<n; i++) Pij[i][j]=0;
@@ -162,7 +165,8 @@ for (i=0; i<n; i++)
           sigma_jp[k]=all_sigma[j+k]; 
           mu_jp[k]=mu_p[j+k];
         }
-  	    Pijs[i][j][s]=dmvnorm(p-j, sigma_jp, yi_jp, mu_jp); 
+  	    
+        Pijs[i][j][s]=dmvnorm(p-j, sigma_jp, yi_jp, mu_jp); 
         /* 
         * this is the unnormalized probability u_ij=gamma_s and 
         * y*_sj=y_ij

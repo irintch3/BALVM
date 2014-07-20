@@ -9,7 +9,6 @@
 #include <R_ext/Applic.h>
 #include <R_ext/Linpack.h>
 #include <R_ext/Lapack.h>
-#include "fcts_Eta_B.h"
 #include "solve.h"
 #define LOW -1.0e15
 
