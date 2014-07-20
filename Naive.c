@@ -236,7 +236,8 @@ if (dens_comp==1)
  /******************************************************************************/
 
 /*
-this procedure computes the overall matrix B (Ball_mat) and the total values of mu_1, ..., mu_p (mu)
+* this procedure computes the overall matrix B (Ball_mat) and the values of mu_1, ..., mu_p (mu)
+* contrary to all_mu_comp computin the values of mu_j1, mu_j2, ..., mu_jj
 */
 
 void mu_B_fct (int n, int p, int order, int m, int nknots, double *knots, 

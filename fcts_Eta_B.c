@@ -1,4 +1,4 @@
-/*  Routines for manipulating B-splines are by Copyright (C) 1998 Douglas M. Bates and William N. Venables.
+/*  Routines for manipulating B-splines are by "Copyright (C) 1998 Douglas M. Bates and William N. Venables"
  *
  */
 
